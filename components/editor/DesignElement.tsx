@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useDesignStore } from "@/store/designStore"
 import type { DesignElement as DesignElementType } from "@/types/editor"
 
@@ -13,20 +13,43 @@ interface DesignElementProps {
 }
 
 export default function DesignElement({ element, isSelected, zoom }: DesignElementProps) {
-  const { setSelectedElement, updateElementPosition, updateElementSize } = useDesignStore()
+  const { setSelectedElement, updateElementPosition, updateElementSize, updateElementContent } = useDesignStore()
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [resizeDirection, setResizeDirection] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const elementRef = useRef<HTMLDivElement>(null)
+  const textEditRef = useRef<HTMLTextAreaElement>(null)
   const startPosRef = useRef({ x: 0, y: 0 })
   const startSizeRef = useRef({ width: 0, height: 0 })
+
+  // Focus the text edit field when entering edit mode
+  useEffect(() => {
+    if (isEditing && textEditRef.current) {
+      textEditRef.current.focus()
+    }
+  }, [isEditing])
 
   const handleElementClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     setSelectedElement(element.id)
+
+    // Double click to edit text
+    if (element.type === "text" && e.detail === 2) {
+      setIsEditing(true)
+    }
+  }
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    updateElementContent(element.id, e.target.value)
+  }
+
+  const handleTextBlur = () => {
+    setIsEditing(false)
   }
 
   const handleDragStart = (e: React.MouseEvent) => {
+    if (isEditing) return
     e.stopPropagation()
     setIsDragging(true)
     startPosRef.current = { x: e.clientX, y: e.clientY }
@@ -96,6 +119,30 @@ export default function DesignElement({ element, isSelected, zoom }: DesignEleme
   const renderElement = () => {
     switch (element.type) {
       case "text":
+        if (isEditing) {
+          return (
+            <textarea
+              ref={textEditRef}
+              value={element.content}
+              onChange={handleTextChange}
+              onBlur={handleTextBlur}
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+                outline: "none",
+                resize: "none",
+                backgroundColor: "transparent",
+                color: element.style?.color || "#000000",
+                fontFamily: element.style?.fontFamily || "Arial",
+                fontSize: `${element.style?.fontSize || 16}px`,
+                fontWeight: element.style?.fontWeight || "normal",
+                textAlign: (element.style?.textAlign as any) || "left",
+                padding: "4px",
+              }}
+            />
+          )
+        }
         return (
           <div
             style={{
@@ -180,14 +227,14 @@ export default function DesignElement({ element, isSelected, zoom }: DesignEleme
         opacity: element.style?.opacity || 1,
       }}
       onClick={handleElementClick}
-      onMouseDown={handleDragStart}
-      onMouseMove={handleDrag}
-      onMouseUp={handleDragEnd}
-      onMouseLeave={handleDragEnd}
+      onMouseDown={!isEditing ? handleDragStart : undefined}
+      onMouseMove={!isEditing ? handleDrag : undefined}
+      onMouseUp={!isEditing ? handleDragEnd : undefined}
+      onMouseLeave={!isEditing ? handleDragEnd : undefined}
     >
       {renderElement()}
 
-      {isSelected && (
+      {isSelected && !isEditing && (
         <>
           <div className="absolute inset-0 border-2 border-blue-500 pointer-events-none"></div>
 

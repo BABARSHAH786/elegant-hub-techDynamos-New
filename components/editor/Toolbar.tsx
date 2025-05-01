@@ -1,5 +1,8 @@
 "use client"
 import { useDesignStore } from "@/store/designStore"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import html2canvas from "html2canvas"
 
 export default function Toolbar() {
   const {
@@ -15,6 +18,10 @@ export default function Toolbar() {
     undo,
     redo,
   } = useDesignStore()
+  const router = useRouter()
+  const [isSaving, setIsSaving] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportFormat, setExportFormat] = useState<string | null>(null)
 
   const selectedElement = elements.find((el) => el.id === selectedElementId)
 
@@ -92,6 +99,102 @@ export default function Toolbar() {
     setZoom(1)
   }
 
+  const handleSave = () => {
+    try {
+      setIsSaving(true)
+      localStorage.setItem("designElements", JSON.stringify(elements))
+      localStorage.setItem("canvasSize", JSON.stringify(canvasSize))
+
+      // Show success message
+      const successMessage = document.createElement("div")
+      successMessage.className = "fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50"
+      successMessage.textContent = "Design saved successfully!"
+      document.body.appendChild(successMessage)
+
+      // Remove message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(successMessage)
+      }, 3000)
+    } catch (error) {
+      console.error("Error saving design:", error)
+
+      // Show error message
+      const errorMessage = document.createElement("div")
+      errorMessage.className = "fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50"
+      errorMessage.textContent = "Failed to save design. Please try again."
+      document.body.appendChild(errorMessage)
+
+      // Remove message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(errorMessage)
+      }, 3000)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleExport = async (format: string) => {
+    setIsExporting(true)
+    setExportFormat(null)
+
+    try {
+      // Find the canvas element
+      const canvasElement = document.querySelector(".design-canvas") as HTMLElement
+
+      if (!canvasElement) {
+        throw new Error("Canvas element not found")
+      }
+
+      // Use html2canvas to capture the canvas
+      const canvas = await html2canvas(canvasElement, {
+        backgroundColor: "#ffffff",
+        scale: 2, // Higher quality
+      })
+
+      // Create download link
+      const link = document.createElement("a")
+
+      if (format === "png") {
+        link.href = canvas.toDataURL("image/png")
+        link.download = `elegant-hub-design-${Date.now()}.png`
+      } else if (format === "jpg") {
+        link.href = canvas.toDataURL("image/jpeg", 0.9)
+        link.download = `elegant-hub-design-${Date.now()}.jpg`
+      }
+
+      // Trigger download
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      // Show success message
+      const successMessage = document.createElement("div")
+      successMessage.className = "fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50"
+      successMessage.textContent = `Design exported as ${format.toUpperCase()} successfully!`
+      document.body.appendChild(successMessage)
+
+      // Remove message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(successMessage)
+      }, 3000)
+    } catch (error) {
+      console.error("Error exporting design:", error)
+
+      // Show error message
+      const errorMessage = document.createElement("div")
+      errorMessage.className = "fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50"
+      errorMessage.textContent = "Failed to export design. Please try again."
+      document.body.appendChild(errorMessage)
+
+      // Remove message after 3 seconds
+      setTimeout(() => {
+        document.body.removeChild(errorMessage)
+      }, 3000)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="bg-gray-800 border-b border-gray-700 p-2 flex items-center justify-between">
       <div className="flex items-center space-x-2">
@@ -130,11 +233,7 @@ export default function Toolbar() {
         {/* Add elements */}
         <button onClick={handleAddText} className="p-2 rounded hover:bg-gray-700" title="Add Text">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
-              clipRule="evenodd"
-            />
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
           </svg>
         </button>
         <button onClick={handleAddImage} className="p-2 rounded hover:bg-gray-700" title="Add Image">
@@ -206,8 +305,62 @@ export default function Toolbar() {
       </div>
 
       <div className="flex items-center space-x-2">
-        <button className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm">Save</button>
-        <button className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">Export</button>
+        <button
+          onClick={() => window.open("/editor/preview", "_blank")}
+          className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+            <path
+              fillRule="evenodd"
+              d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Preview
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-3 py-1 rounded text-sm"
+        >
+          {isSaving ? "Saving..." : "Save"}
+        </button>
+        <div className="relative group">
+          <button
+            className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm flex items-center"
+            onClick={() => setExportFormat(exportFormat ? null : "png")}
+          >
+            Export
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fillRule="evenodd"
+                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          {exportFormat && (
+            <div className="absolute right-0 mt-2 w-36 bg-gray-800 rounded-md shadow-lg z-10">
+              <div className="py-1">
+                <button
+                  onClick={() => handleExport("png")}
+                  disabled={isExporting}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                >
+                  PNG Image
+                </button>
+                <button
+                  onClick={() => handleExport("jpg")}
+                  disabled={isExporting}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                >
+                  JPG Image
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

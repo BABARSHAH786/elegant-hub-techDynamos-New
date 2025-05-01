@@ -31,7 +31,18 @@ interface DesignState {
   redo: () => void
 }
 
-export const useDesignStore = create<DesignState>((set) => ({
+const saveToLocalStorage = (elements: DesignElement[], canvasSize: { width: number; height: number }) => {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("designElements", JSON.stringify(elements))
+      localStorage.setItem("canvasSize", JSON.stringify(canvasSize))
+    } catch (error) {
+      console.error("Error saving to localStorage:", error)
+    }
+  }
+}
+
+export const useDesignStore = create<DesignState>((set, get) => ({
   elements: [],
   selectedElementId: null,
   canvasSize: { width: 800, height: 600 },
@@ -46,6 +57,8 @@ export const useDesignStore = create<DesignState>((set) => ({
     set((state) => {
       const newElement = { ...element, id: nanoid() }
       const newElements = [...state.elements, newElement]
+
+      saveToLocalStorage(newElements, state.canvasSize)
 
       return {
         elements: newElements,
@@ -63,6 +76,8 @@ export const useDesignStore = create<DesignState>((set) => ({
     set((state) => {
       const newElements = state.elements.map((el) => (el.id === id ? { ...el, position } : el))
 
+      saveToLocalStorage(newElements, state.canvasSize)
+
       return {
         elements: newElements,
         history: {
@@ -76,6 +91,8 @@ export const useDesignStore = create<DesignState>((set) => ({
     set((state) => {
       const newElements = state.elements.map((el) => (el.id === id ? { ...el, size } : el))
 
+      saveToLocalStorage(newElements, state.canvasSize)
+
       return {
         elements: newElements,
         history: {
@@ -88,6 +105,8 @@ export const useDesignStore = create<DesignState>((set) => ({
   updateElementRotation: (id, rotation) =>
     set((state) => {
       const newElements = state.elements.map((el) => (el.id === id ? { ...el, rotation } : el))
+
+      saveToLocalStorage(newElements, state.canvasSize)
 
       return {
         elements: newElements,
@@ -109,6 +128,8 @@ export const useDesignStore = create<DesignState>((set) => ({
           : el,
       )
 
+      saveToLocalStorage(newElements, state.canvasSize)
+
       return {
         elements: newElements,
         history: {
@@ -121,6 +142,8 @@ export const useDesignStore = create<DesignState>((set) => ({
   updateElementContent: (id, content) =>
     set((state) => {
       const newElements = state.elements.map((el) => (el.id === id ? { ...el, content } : el))
+
+      saveToLocalStorage(newElements, state.canvasSize)
 
       return {
         elements: newElements,
@@ -135,6 +158,8 @@ export const useDesignStore = create<DesignState>((set) => ({
     set((state) => {
       const newElements = state.elements.filter((el) => el.id !== id)
 
+      saveToLocalStorage(newElements, state.canvasSize)
+
       return {
         elements: newElements,
         selectedElementId: state.selectedElementId === id ? null : state.selectedElementId,
@@ -145,7 +170,12 @@ export const useDesignStore = create<DesignState>((set) => ({
       }
     }),
 
-  setCanvasSize: (size) => set({ canvasSize: size }),
+  setCanvasSize: (size) => {
+    set((state) => {
+      saveToLocalStorage(state.elements, size)
+      return { canvasSize: size }
+    })
+  },
 
   setZoom: (zoom) => set({ zoom }),
 
@@ -157,6 +187,8 @@ export const useDesignStore = create<DesignState>((set) => ({
 
       const previous = state.history.past[state.history.past.length - 1]
       const newPast = state.history.past.slice(0, -1)
+
+      saveToLocalStorage(previous, state.canvasSize)
 
       return {
         elements: previous,
@@ -173,6 +205,8 @@ export const useDesignStore = create<DesignState>((set) => ({
 
       const next = state.history.future[0]
       const newFuture = state.history.future.slice(1)
+
+      saveToLocalStorage(next, state.canvasSize)
 
       return {
         elements: next,

@@ -71,6 +71,7 @@
     "framer-motion": "latest",
     "react-color": "latest",
     "@react-three/drei": "latest",
+    "html2canvas": "latest",
     "zustand": "latest",
     "nanoid": "latest"
   },

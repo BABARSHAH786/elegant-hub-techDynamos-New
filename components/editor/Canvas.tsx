@@ -20,6 +20,19 @@ export default function Canvas() {
     }
   }
 
+  // Center the canvas on initial load
+  useEffect(() => {
+    if (canvasRef.current && typeof window !== "undefined") {
+      const containerWidth = canvasRef.current.parentElement?.clientWidth || window.innerWidth
+      const containerHeight = canvasRef.current.parentElement?.clientHeight || window.innerHeight
+
+      const centerX = (containerWidth - canvasSize.width * zoom) / 2
+      const centerY = (containerHeight - canvasSize.height * zoom) / 2
+
+      useDesignStore.setState({ panOffset: { x: centerX, y: centerY } })
+    }
+  }, [canvasSize.width, canvasSize.height, zoom])
+
   // Handle space bar + drag to pan the canvas
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -101,7 +114,7 @@ export default function Canvas() {
       >
         <div
           ref={canvasRef}
-          className="bg-white shadow-xl relative"
+          className="bg-white shadow-xl relative design-canvas"
           style={{
             width: canvasSize.width * zoom,
             height: canvasSize.height * zoom,
